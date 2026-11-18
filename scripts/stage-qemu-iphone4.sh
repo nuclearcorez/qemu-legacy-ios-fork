@@ -60,7 +60,7 @@ PY
 # only lists the board-specific files. Register the shared implementations
 # here or the final link leaves their symbols unresolved.
 SHARED_A4_SOURCES="
-  guest-services.c guest-pasteboard.c guest-package.c ipod-agent.c guest-gles.c ios-posix-compat.c
+  guest-services.c guest-pasteboard.c guest-package.c ipod-agent.c guest-gles.c
   it_iboot.c ipod_touch_clock.c ipod_touch_chipid.c ipod_touch_gpio.c
   ipod_touch_sysic.c ipod_touch_timer.c ipod_touch_spi.c ipod_touch_nor_spi.c
   ipod_touch_sha1.c ipod_touch_aes.c ipod_touch_pke.c ipod_touch_pcf50633_pmu.c
