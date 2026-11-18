@@ -1,0 +1,76 @@
+name: Build QEMU iOS engine
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-engine:
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Select Xcode
+        id: xcode
+        run: |
+          set -euo pipefail
+          echo "Installed Xcode applications:"
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          XCODE_APP="$(find /Applications -maxdepth 1 -type d -name 'Xcode_*.app' -print | sort -V | tail -n 1)"
+          if [ -z "$XCODE_APP" ]; then XCODE_APP="/Applications/Xcode.app"; fi
+          test -d "$XCODE_APP/Contents/Developer"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "Selected iPhoneOS SDK: $SDK_VERSION"
+          echo "sdk_version=$SDK_VERSION" >> "$GITHUB_OUTPUT"
+          XCODE_SHA="$(xcodebuild -version | shasum -a 256 | awk '{print $1}')"
+          echo "xcode_sha=$XCODE_SHA" >> "$GITHUB_OUTPUT"
+          SDK_MAJOR="${SDK_VERSION%%.*}"
+          if [ "$SDK_MAJOR" -lt 26 ]; then
+            echo "Project Astra's on-device pairing code uses iOS 26 SDK APIs; install/select Xcode 26 or newer." >&2
+            exit 1
+          fi
+      - name: Install native QEMU build dependencies
+        run: brew install glib pixman libslirp ninja meson pkgconf
+
+      - name: Fingerprint native build tools
+        id: build-tools
+        run: |
+          set -euo pipefail
+          BREW_SHA="$(brew list --versions glib pixman libslirp ninja meson pkgconf | shasum -a 256 | awk '{print $1}')"
+          echo "brew_sha=$BREW_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Record pinned QEMU source revision
+        id: qemu-meta
+        run: |
+          set -euo pipefail
+          ENGINE_SHA="$(git -C vendor/qemu-engine rev-parse HEAD)"
+          echo "engine_sha=$ENGINE_SHA" >> "$GITHUB_OUTPUT"
+
+      # Only restore a cache built with the exact same QEMU source, scripts,
+      # Xcode SDK/toolchain, and native build-tool versions. A stale Meson
+      # build.ninja must never bypass reconfiguration after an input changes.
+      - name: Restore compatible QEMU iOS build cache
+        uses: actions/cache@v4
+        with:
+          path: .build/qemu-ios
+          key: astra-qemu-ios-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.sdk_version }}-${{ steps.xcode.outputs.xcode_sha }}-${{ steps.qemu-meta.outputs.engine_sha }}-${{ steps.build-tools.outputs.brew_sha }}-${{ hashFiles('scripts/build-qemu-ios-engine.sh', 'scripts/stage-qemu-iphone4.sh', 'scripts/patch-qemu-ios-apple-aes.py') }}
+
+      - name: Cross-build QEMU for iOS ARM64
+        env:
+          QEMU_IOS_BUILD_ROOT: ${{ github.workspace }}/.build/qemu-ios
+        run: bash scripts/build-qemu-ios-engine.sh
+
+      - name: Upload iOS QEMU engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-ios-arm64-engine
+          path: ios/Frameworks/libqemu-arm.dylib
+          if-no-files-found: error
+          retention-days: 14
