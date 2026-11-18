@@ -8,12 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: project-astra-stikjit-prebuild-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
   build-stikjit:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +21,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ios/vendor/stikjit/src/target
-          key: astra-stikjit-${{ runner.os }}-${{ hashFiles('scripts/vendor-stikjit.sh') }}
+          key: astra-stikjit-${{ runner.os }}-${{ runner.arch }}-${{ runner.arch }}-${{ hashFiles('scripts/vendor-stikjit.sh') }}
           restore-keys: |
             astra-stikjit-${{ runner.os }}-
       - name: Build pinned StikJIT integration and pairing library
