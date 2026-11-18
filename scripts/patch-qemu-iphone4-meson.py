@@ -38,8 +38,33 @@ arm_ss.add(when: 'CONFIG_IPAD1', if_true: files(
   'ipod_touch_lm48821.c', 'ipod_touch_lis302dl.c', 'ipod_touch_tethered.c',
   'ipod_touch_multitouch.c', 'ipod_touch_tvout.c', 'ipod_touch_isl29003dl.c',
   'ipod_touch_bt.c', 'ipod_touch_usb_otg.c', 'ipod_touch_tcp_usb.c',
-  'ipod_touch_usb_phys.c', 'gles-host-stub.c', 'ios-posix-compat.c'
+  'ipod_touch_usb_phys.c', 'gles-host-stub.c'
 ))
+# The original iPhone 2G selects CONFIG_IPOD_TOUCH_1G. It uses the same
+# legacy guest-service/peripheral implementations, so register those sources
+# for that board as well (the A4-only board sources remain CONFIG_IPAD1 above).
+arm_ss.add(when: 'CONFIG_IPOD_TOUCH_1G', if_true: files(
+  'guest-services.c', 'guest-pasteboard.c', 'guest-package.c',
+  'ipod-agent.c', 'guest-gles.c', 'it_iboot.c',
+  'ipod_touch_clock.c', 'ipod_touch_chipid.c', 'ipod_touch_gpio.c',
+  'ipod_touch_sysic.c', 'ipod_touch_timer.c', 'ipod_touch_spi.c',
+  'ipod_touch_nor_spi.c', 'ipod_touch_sha1.c', 'ipod_touch_aes.c',
+  'ipod_touch_pke.c', 'ipod_touch_pcf50633_pmu.c',
+  'ipod_touch_unknown1.c', 'ipod_touch_wdt.c', 'ipod_touch_mpvd.c',
+  'ipod_touch_h264.c', 'ipod_touch_scaler.c', 'ipod_touch_swi.c',
+  'ipod_video.c', 'ipod_touch_lcd.c', 'ipod_touch_mipi_dsi.c',
+  'ipod_touch_fmss.c', 'ipod_touch_mbx.c', 'ipod_touch_cd3272_mikey.c',
+  'ipod_touch_cs42l58.c', 'ipod_touch_amc.c', 'ipod_touch_i2s.c',
+  'ipod_touch_lm48821.c', 'ipod_touch_lis302dl.c', 'ipod_touch_tethered.c',
+  'ipod_touch_multitouch.c', 'ipod_touch_tvout.c', 'ipod_touch_isl29003dl.c',
+  'ipod_touch_bt.c', 'ipod_touch_usb_otg.c', 'ipod_touch_tcp_usb.c',
+  'ipod_touch_usb_phys.c', 'gles-host-stub.c'
+))
+# Original iPhone/iPod Touch Wi-Fi peripherals.
+arm_ss.add(when: 'CONFIG_IPOD_TOUCH_1G', if_true: files(
+  'ipod_touch_sdio.c', 'bcm_fullmac.c', 'mrvl8686.c'
+))
+
 # BCM4329 SDIO/full-MAC support for the GSM iPhone 4.
 arm_ss.add(when: 'CONFIG_IPAD1', if_true: files(
   'ipod_touch_sdio.c', 'bcm_fullmac.c', 'mrvl8686.c'
