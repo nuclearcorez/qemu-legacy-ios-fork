@@ -286,9 +286,8 @@ struct ContentView: View {
     }
 
     private func startEmulator() {
-        if cpuFamily == "S5L8900-2G" || cpuFamily == "ARM11" {
-            let device = cpuFamily == "S5L8900-2G" ? "iPhone 2G (m68ap)" : "iPhone 3G (N82AP)"
-            status = "\(device) selected. Both use the S5L8900 / ARM1176 family, but their board profiles, boot ROM handling, and prepared firmware are not integrated into this IPA yet. The iPhone 4 bundle cannot be used."
+        if cpuFamily == "ARM11" {
+            status = "iPhone 3G (N82AP) is not wired into this app yet. Its separate board and firmware profile cannot use the iPhone 2G bundle."
             showingEngineNotice = true
             return
         }
