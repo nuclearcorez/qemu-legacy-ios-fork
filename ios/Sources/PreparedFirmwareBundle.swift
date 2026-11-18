@@ -91,8 +91,8 @@ enum PreparedFirmwareBundleStore {
             let iboot = bundleURL.appendingPathComponent("iBoot.bin").path
             let nor = bundleURL.appendingPathComponent("nor.bin").path
             arguments = [
-                "-M", "iPhone-2G,bootrom=\\(bootrom),iboot=\\(iboot),nand=\\(nand),nand-overlay=\\(overlay.path)",
-                "-drive", "if=pflash,format=raw,file=\\(nor)",
+                "-M", "iPhone-2G,bootrom=\(bootrom),iboot=\(iboot),nand=\(nand),nand-overlay=\(overlay.path)",
+                "-drive", "if=pflash,format=raw,file=\(nor)",
                 "-display", "none",
                 "-serial", "stdio",
                 "-audio", "driver=none"
@@ -101,7 +101,7 @@ enum PreparedFirmwareBundleStore {
         } else {
             let kboot = bundleURL.appendingPathComponent("kboot.bin").path
             arguments = [
-                "-M", "iPhone-4,kboot=\\(kboot),nand=\\(nand),nand-overlay=\\(overlay.path),nor-rw=\\(overlay.appendingPathComponent("nor.bin").path)",
+                "-M", "iPhone-4,kboot=\(kboot),nand=\(nand),nand-overlay=\(overlay.path),nor-rw=\(overlay.appendingPathComponent("nor.bin").path)",
                 "-display", "none",
                 "-serial", "stdio"
             ]
