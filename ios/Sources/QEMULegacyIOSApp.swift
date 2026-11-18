@@ -271,8 +271,11 @@ struct ContentView: View {
                 return
             }
             do {
-                preparedBundleURL = try PreparedFirmwareBundleStore.importBundle(from: source)
-                status = "Prepared iPhone 4 firmware validated. KBoot and NAND are ready for the QEMU launch stage."
+                let device = cpuFamily == "S5L8900-2G" ? "m68ap" : "n90ap"
+                preparedBundleURL = try PreparedFirmwareBundleStore.importBundle(from: source, device: device)
+                status = device == "m68ap"
+                    ? "Prepared original iPhone firmware validated. SecureROM, iBoot, NOR and NAND are ready for the QEMU launch stage."
+                    : "Prepared iPhone 4 firmware validated. KBoot and NAND are ready for the QEMU launch stage."
             } catch {
                 preparedBundleURL = nil
                 status = "Prepared bundle rejected: \(error.localizedDescription)"
@@ -299,9 +302,11 @@ struct ContentView: View {
             return
         }
         do {
+            let device = cpuFamily == "S5L8900-2G" ? "m68ap" : "n90ap"
             let configuration = try PreparedFirmwareBundleStore.makeBootConfiguration(
                 bundleURL: bundle,
-                storageGiB: storageGiB
+                storageGiB: storageGiB,
+                device: device
             )
             status = "Boot configuration prepared for \(configuration.machine). QEMU's iOS runtime is not linked into this IPA yet."
         } catch {
