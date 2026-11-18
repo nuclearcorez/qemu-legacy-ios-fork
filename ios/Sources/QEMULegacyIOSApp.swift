@@ -335,7 +335,7 @@ struct EmulatorSettingsView: View {
     private let storageOptions = [1, 2, 4, 8, 16, 32]
     private var firmwareOptions: [String] {
         switch cpuFamily {
-        case "S5L8900-2G": return ["3.1.3"]
+        case "S5L8900-2G": return ["1.0"]
         case "ARM11": return ["4.2.1"]
         default: return ["4.2.1", "7.1.2", "6.1.3", "5.1.1", "8.4.1", "9.3.6"]
         }
@@ -378,7 +378,7 @@ struct EmulatorSettingsView: View {
                     let isOriginalIPhone = cpuFamily == "S5L8900-2G"
                     Label(
                         isOriginalIPhone
-                            ? "Original iPhone (m68ap / iPhone1,1): S5L8900 / ARM1176JZF-S, 128 MiB RAM. iOS 3.1.3 is the final firmware profile. It needs its own board setup and S5L8900 boot ROM."
+                            ? "Original iPhone (m68ap / iPhone1,1): S5L8900 / ARM1176JZF-S, 128 MiB RAM. The currently prepared QEMU profile is iPhone OS 1.0 (1A543a) and requires its own S5L8900 boot ROM, iBoot, NOR and NAND."
                             : "iPhone 3G (N82AP / iPhone1,2): same S5L8900 / ARM1176JZF-S family, 128 MiB RAM. iOS 4.2.1 (8C148) is the final firmware profile. It needs its own board setup and NAND/NOR preparation.",
                         systemImage: "info.circle"
                     )
