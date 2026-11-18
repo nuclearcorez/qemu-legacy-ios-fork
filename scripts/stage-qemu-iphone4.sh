@@ -24,6 +24,62 @@ for subtree in hw/arm hw/misc include/hw/arm include/hw/misc include/hw/net; do
   fi
 done
 
+# The iOS SDK does not include OpenSSL headers. The iPhone AES peripheral only
+# uses AES_set_{encrypt,decrypt}_key and AES_cbc_encrypt, provided by the
+# vendored CommonCrypto compatibility shim for Apple targets.
+if [ -f "$VENDOR/include/openssl/aes.h" ]; then
+  mkdir -p "$ENGINE/include/openssl"
+  cp "$VENDOR/include/openssl/aes.h" "$ENGINE/include/openssl/aes.h"
+fi
+if [ ! -f "$ENGINE/include/openssl/aes.h" ]; then
+  echo "Missing iOS AES compatibility header: include/openssl/aes.h" >&2
+  exit 5
+fi
+
+if [ -f "$VENDOR/include/openssl/bn.h" ]; then
+  cp "$VENDOR/include/openssl/bn.h" "$ENGINE/include/openssl/bn.h"
+fi
+if [ ! -f "$ENGINE/include/openssl/bn.h" ]; then
+  echo "Missing GMP-backed iOS BIGNUM compatibility header: include/openssl/bn.h" >&2
+  exit 5
+fi
+
+# QEMU's source include paths use -iquote, so the vendored compatibility
+# header must be included with quotes rather than angle brackets.
+python3 - "$ENGINE/hw/arm/ipod_touch_pke.c" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+text = p.read_text()
+text = text.replace("#include <openssl/bn.h>", '#include "openssl/bn.h"', 1)
+p.write_text(text)
+PY
+
+# The A4 board also calls into the shared iPod Touch support modules. They
+# are copied into the engine tree above, but the upstream IPAD1 Meson stanza
+# only lists the board-specific files. Register the shared implementations
+# here or the final link leaves their symbols unresolved.
+SHARED_A4_SOURCES="
+  guest-services.c guest-pasteboard.c guest-package.c ipod-agent.c guest-gles.c ios-posix-compat.c
+  it_iboot.c ipod_touch_clock.c ipod_touch_chipid.c ipod_touch_gpio.c
+  ipod_touch_sysic.c ipod_touch_timer.c ipod_touch_spi.c ipod_touch_nor_spi.c
+  ipod_touch_sha1.c ipod_touch_aes.c ipod_touch_pke.c ipod_touch_pcf50633_pmu.c
+  ipod_touch_unknown1.c ipod_touch_wdt.c ipod_touch_mpvd.c ipod_touch_h264.c
+  ipod_touch_scaler.c ipod_touch_swi.c ipod_video.c ipod_touch_lcd.c
+  ipod_touch_mipi_dsi.c ipod_touch_fmss.c ipod_touch_mbx.c
+  ipod_touch_cd3272_mikey.c ipod_touch_cs42l58.c ipod_touch_amc.c
+  ipod_touch_i2s.c ipod_touch_lm48821.c ipod_touch_lis302dl.c
+  ipod_touch_tethered.c ipod_touch_multitouch.c ipod_touch_tvout.c
+  ipod_touch_isl29003dl.c ipod_touch_bt.c
+  ipod_touch_usb_otg.c ipod_touch_tcp_usb.c ipod_touch_usb_phys.c
+"
+for source in $SHARED_A4_SOURCES; do
+  if [ ! -f "$ENGINE/hw/arm/$source" ]; then
+    echo "Missing shared A4 support source: hw/arm/$source" >&2
+    exit 4
+  fi
+done
+
 # Keep this list aligned with the pinned CONFIG_IPAD1 source registrations.
 for source in \
   ipad1.c s5l8930_dmc.c s5l8930_pmgr.c s5l8930_gpio.c \
@@ -67,10 +123,9 @@ echo "N90 uses Samsung 0xB614D5AD (4 KiB pages, 128 pages/block); the 8 GiB prof
 echo "The BCM4329 Wi-Fi bridge is enabled by default; it auto-creates user-mode NAT networking as wifi0."
 echo "The CONFIG_IPAD1 Meson registration below enables the BCM4329 SDIO card models."
 
-# Register the shared BCM4329 SDIO/full-MAC implementation exactly once.
-if ! grep "CONFIG_IPAD1" "$ENGINE/hw/arm/meson.build" | grep -q "ipod_touch_sdio.c"; then
-  printf '%s\n' "" "# QEMU Legacy iOS: BCM4329 Wi-Fi for the iPhone 4 GSM board." "arm_ss.add(when: 'CONFIG_IPAD1', if_true: files('ipod_touch_sdio.c', 'bcm_fullmac.c', 'mrvl8686.c'))" >> "$ENGINE/hw/arm/meson.build"
-fi
+# Register shared A4 support before hw_arch exports arm_ss. Appending these
+# declarations to the end of Meson file silently omits them from the build.
+python3 "$ROOT/scripts/patch-qemu-iphone4-meson.py" "$ENGINE/hw/arm/meson.build"
 
 TRACE_EVENTS="$ENGINE/hw/arm/trace-events"
 TRACE_FRAGMENT="$VENDOR/upstream/hw/arm/trace-events"
