@@ -10,6 +10,9 @@ enum PreparedFirmwareBundleError: LocalizedError {
     case inaccessibleFolder
     case missingKBoot
     case missingNAND
+    case missingBootROM
+    case missingIBoot
+    case missingNOR
     case emptyNAND
     case copyFailed(String)
 
@@ -20,7 +23,13 @@ enum PreparedFirmwareBundleError: LocalizedError {
         case .missingKBoot:
             return "kboot.bin was not found at the top level of the selected folder."
         case .missingNAND:
-            return "The nand folder was not found beside kboot.bin."
+            return "The nand folder was not found beside the boot files."
+        case .missingBootROM:
+            return "bootrom_s5l8900 was not found in the prepared iPhone 2G folder."
+        case .missingIBoot:
+            return "iBoot.bin was not found in the prepared iPhone 2G folder."
+        case .missingNOR:
+            return "nor.bin was not found in the prepared iPhone 2G folder."
         case .emptyNAND:
             return "The nand folder contains no files."
         case .copyFailed(let message):
@@ -30,7 +39,7 @@ enum PreparedFirmwareBundleError: LocalizedError {
 }
 
 enum PreparedFirmwareBundleStore {
-    static func importBundle(from source: URL) throws -> URL {
+    static func importBundle(from source: URL, device: String = "n90ap") throws -> URL {
         let didStart = source.startAccessingSecurityScopedResource()
         defer {
             if didStart { source.stopAccessingSecurityScopedResource() }
@@ -41,7 +50,7 @@ enum PreparedFirmwareBundleStore {
         guard manager.fileExists(atPath: source.path, isDirectory: &isDirectory), isDirectory.boolValue else {
             throw PreparedFirmwareBundleError.inaccessibleFolder
         }
-        try validate(source)
+        try validate(source, device: device)
 
         let support = try manager.url(
             for: .applicationSupportDirectory,
@@ -52,13 +61,13 @@ enum PreparedFirmwareBundleStore {
         let parent = support.appendingPathComponent("PreparedFirmware", isDirectory: true)
         try manager.createDirectory(at: parent, withIntermediateDirectories: true)
 
-        let destination = parent.appendingPathComponent("n90ap-device", isDirectory: true)
+        let destination = parent.appendingPathComponent("\(device)-device", isDirectory: true)
         if manager.fileExists(atPath: destination.path) {
             try manager.removeItem(at: destination)
         }
         do {
             try manager.copyItem(at: source, to: destination)
-            try validate(destination)
+            try validate(destination, device: device)
             return destination
         } catch {
             if manager.fileExists(atPath: destination.path) {
@@ -68,8 +77,8 @@ enum PreparedFirmwareBundleStore {
         }
     }
 
-    static func makeBootConfiguration(bundleURL: URL, storageGiB: Int) throws -> QEMUBootConfiguration {
-        try validate(bundleURL)
+    static func makeBootConfiguration(bundleURL: URL, storageGiB: Int, device: String = "n90ap") throws -> QEMUBootConfiguration {
+        try validate(bundleURL, device: device)
         let manager = FileManager.default
         let overlay = bundleURL.appendingPathComponent("qemu-overlay", isDirectory: true)
         try manager.createDirectory(at: overlay, withIntermediateDirectories: true)
@@ -87,9 +96,19 @@ enum PreparedFirmwareBundleStore {
         return QEMUBootConfiguration(machine: "iPhone-4 (n90ap)", arguments: arguments, overlayDirectory: overlay)
     }
 
-    private static func validate(_ folder: URL) throws {
+    private static func validate(_ folder: URL, device: String) throws {
         let manager = FileManager.default
-        guard manager.fileExists(atPath: folder.appendingPathComponent("kboot.bin").path) else {
+        if device == "m68ap" {
+            guard manager.fileExists(atPath: folder.appendingPathComponent("bootrom_s5l8900").path) else {
+                throw PreparedFirmwareBundleError.missingBootROM
+            }
+            guard manager.fileExists(atPath: folder.appendingPathComponent("iBoot.bin").path) else {
+                throw PreparedFirmwareBundleError.missingIBoot
+            }
+            guard manager.fileExists(atPath: folder.appendingPathComponent("nor.bin").path) else {
+                throw PreparedFirmwareBundleError.missingNOR
+            }
+        } else if !manager.fileExists(atPath: folder.appendingPathComponent("kboot.bin").path) {
             throw PreparedFirmwareBundleError.missingKBoot
         }
 
