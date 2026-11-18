@@ -6,8 +6,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENGINE="$ROOT/vendor/qemu-engine"
 BUILD_ROOT="${QEMU_IOS_BUILD_ROOT:-${RUNNER_TEMP:-$ROOT/.build}/qemu-ios}"
+DEVICE_TARGET="${DEVICE_TARGET:-iphone4}"
 BOOT="$BUILD_ROOT/bootstrap"
-IOS="$BUILD_ROOT/ios"
+IOS="$BUILD_ROOT/$DEVICE_TARGET/ios"
 DEPS="$BUILD_ROOT/deps"
 EXPECTED_ENGINE_SHA="db230fe8e8e4d297724b2eccdc38bdc21876696a"
 DEPS_URL="https://github.com/MakrSas/orchard-ios/releases/download/ios-deps-1/orchard-ios-deps-arm64.tar.xz"
@@ -20,7 +21,8 @@ if [ "$ACTUAL_ENGINE_SHA" != "$EXPECTED_ENGINE_SHA" ]; then
     exit 2
 fi
 
-# Stage the board and Wi-Fi sources that belong to this app's iPhone 4 profile.
+# Stage shared legacy-device support sources and Apple compatibility headers.
+# The helper is idempotent; the device config below selects the board to build.
 sh "$ROOT/scripts/stage-qemu-iphone4.sh"
 
 # Assert that the staged Apple crypto compatibility headers are actually
@@ -32,9 +34,24 @@ grep -q '#include "openssl/bn.h"' "$ENGINE/hw/arm/ipod_touch_pke.c"
 # The iOS SDK provides CommonCrypto, not OpenSSL headers/libraries.
 python3 "$ROOT/scripts/patch-qemu-ios-apple-aes.py" "$ENGINE/include/hw/arm/ipod_touch_aes.h"
 
-# This device configuration deliberately includes only the A4 iPhone 4 machine.
+# Select exactly the requested board. CONFIG_IPOD_TOUCH_1G selects the shared
+# S5L8720 peripherals and the S5L8900 original-iPhone board through Kconfig.
 mkdir -p "$ENGINE/configs/devices/arm-softmmu"
-printf '%s\n' 'CONFIG_IPAD1=y' > "$ENGINE/configs/devices/arm-softmmu/ios.mak"
+case "$DEVICE_TARGET" in
+    iphone4)
+        printf '%s\n' 'CONFIG_IPAD1=y' > "$ENGINE/configs/devices/arm-softmmu/ios.mak"
+        ;;
+    iphone2g)
+        printf '%s\n' 'CONFIG_IPOD_TOUCH_1G=y' > "$ENGINE/configs/devices/arm-softmmu/ios.mak"
+        ;;
+    *)
+        echo "Unsupported device target: $DEVICE_TARGET" >&2
+        exit 2
+        ;;
+esac
+grep -q "^CONFIG_.*=y$" "$ENGINE/configs/devices/arm-softmmu/ios.mak"
+echo "Selected device config:"
+cat "$ENGINE/configs/devices/arm-softmmu/ios.mak"
 
 mkdir -p "$BUILD_ROOT"
 if [ ! -f "$DEPS/lib/libglib-2.0.a" ]; then
