@@ -64,4 +64,4 @@ fi
 # embedding ABI at ios/Frameworks/libqemu-arm.dylib. A generic QEMU executable,
 # macOS dylib, or static archive is not a substitute. No supported iOS-device
 # QEMU library target/ABI is currently defined in this repository.
-die "The N90/A4 sources are staged, but an iOS arm64 libqemu-arm.dylib build target and app-facing QEMU embedding ABI have not been implemented. Refusing to emit an invalid artifact. Add the iOS cross-file, QEMU library target/export shim, and link contract before enabling this build."
+die "The selected QEMU board sources are present, but this repository still lacks the iOS arm64 libqemu-arm.dylib build target and app-facing QEMU embedding ABI. Refusing to emit an invalid artifact. Add the iOS cross-file, QEMU library target/export shim, and link contract before enabling this build."
