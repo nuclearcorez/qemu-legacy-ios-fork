@@ -23,7 +23,7 @@ case "$DEVICE_TARGET" in
     echo "Selected target: iPhone 4 GSM (A4 / N90AP)."
     ;;
   iphone2g)
-    die "iPhone 2G (S5L8900 / m68ap) has no integrated machine registration or boot pipeline yet."
+    echo "Selected original iPhone 2G (S5L8900 / m68ap), machine: iPhone-2G."
     ;;
   iphone3g)
     die "iPhone 3G (S5L8900 / N82AP) has no integrated machine registration or boot pipeline yet."
