@@ -12,7 +12,7 @@ permissions:
   contents: write
 jobs:
   build-ipa:
-    runs-on: macos-15
+    runs-on: macos-26-intel
     timeout-minutes: 90
     steps:
       # The IPA target builds from ios/Sources and the Podium A4 source.
