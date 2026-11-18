@@ -83,17 +83,34 @@ enum PreparedFirmwareBundleStore {
         let overlay = bundleURL.appendingPathComponent("qemu-overlay", isDirectory: true)
         try manager.createDirectory(at: overlay, withIntermediateDirectories: true)
 
-        let kboot = bundleURL.appendingPathComponent("kboot.bin").path
         let nand = bundleURL.appendingPathComponent("nand", isDirectory: true).path
-        let arguments = [
-            "-M", "iPhone-4,kboot=\(kboot),nand=\(nand),nand-overlay=\(overlay.path),nor-rw=\(overlay.appendingPathComponent("nor.bin").path)",
-            "-display", "none",
-            "-serial", "stdio"
-        ]
+        let arguments: [String]
+        let machine: String
+        if device == "m68ap" {
+            let bootrom = bundleURL.appendingPathComponent("bootrom_s5l8900").path
+            let iboot = bundleURL.appendingPathComponent("iBoot.bin").path
+            let nor = bundleURL.appendingPathComponent("nor.bin").path
+            arguments = [
+                "-M", "iPhone-2G,bootrom=\\(bootrom),iboot=\\(iboot),nand=\\(nand),nand-overlay=\\(overlay.path)",
+                "-drive", "if=pflash,format=raw,file=\\(nor)",
+                "-display", "none",
+                "-serial", "stdio",
+                "-audio", "driver=none"
+            ]
+            machine = "iPhone-2G (m68ap)"
+        } else {
+            let kboot = bundleURL.appendingPathComponent("kboot.bin").path
+            arguments = [
+                "-M", "iPhone-4,kboot=\\(kboot),nand=\\(nand),nand-overlay=\\(overlay.path),nor-rw=\\(overlay.appendingPathComponent("nor.bin").path)",
+                "-display", "none",
+                "-serial", "stdio"
+            ]
+            machine = "iPhone-4 (n90ap)"
+        }
         // The NAND geometry in a prepared bundle is authoritative. Resizing it
         // safely requires regenerating the NAND images, not changing a UI value.
         _ = storageGiB
-        return QEMUBootConfiguration(machine: "iPhone-4 (n90ap)", arguments: arguments, overlayDirectory: overlay)
+        return QEMUBootConfiguration(machine: machine, arguments: arguments, overlayDirectory: overlay)
     }
 
     private static func validate(_ folder: URL, device: String) throws {
