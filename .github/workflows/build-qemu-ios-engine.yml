@@ -92,7 +92,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .build/qemu-ios
-          key: astra-qemu-ios-${{ inputs.device_target }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.sdk_version }}-${{ steps.xcode.outputs.xcode_sha }}-${{ steps.qemu-meta.outputs.engine_sha }}-${{ steps.build-tools.outputs.brew_sha }}-${{ hashFiles('scripts/build-qemu-ios-engine.sh', 'scripts/stage-qemu-iphone4.sh', 'scripts/patch-qemu-ios-apple-aes.py') }}
+          key: astra-qemu-ios-${{ inputs.device_target }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.sdk_version }}-${{ steps.xcode.outputs.xcode_sha }}-${{ steps.qemu-meta.outputs.engine_sha }}-${{ steps.build-tools.outputs.brew_sha }}-${{ hashFiles('scripts/build-qemu-ios-engine.sh', 'scripts/stage-qemu-iphone4.sh', 'scripts/patch-qemu-iphone4-meson.py', 'scripts/patch-qemu-ios-apple-aes.py', 'vendor/qemu-iphone4/include/openssl/**') }}
 
       - name: Cross-build QEMU for iOS ARM64
         env:
