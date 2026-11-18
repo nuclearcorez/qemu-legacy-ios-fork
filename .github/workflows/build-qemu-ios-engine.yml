@@ -56,8 +56,7 @@ jobs:
               echo "Building the currently integrated iPhone 4 GSM (A4 / n90ap) target."
               ;;
             iphone2g)
-              echo "::error::iPhone 2G (S5L8900 / m68ap) is selectable, but its QEMU machine/board registration and boot pipeline are not integrated yet. This target cannot be built as a runnable device engine yet."
-              exit 1
+              echo "Building the original iPhone 2G (S5L8900 / m68ap) machine from the pinned QEMU-iOS source."
               ;;
             iphone3g)
               echo "::error::iPhone 3G (S5L8900 / N82AP) is selectable, but its QEMU machine/board registration and boot pipeline are not integrated yet. This target cannot be built as a runnable device engine yet."
@@ -98,6 +97,7 @@ jobs:
       - name: Cross-build QEMU for iOS ARM64
         env:
           QEMU_IOS_BUILD_ROOT: ${{ github.workspace }}/.build/qemu-ios
+          DEVICE_TARGET: ${{ inputs.device_target }}
         run: bash scripts/build-qemu-ios-engine.sh
 
       - name: Upload iOS QEMU engine
