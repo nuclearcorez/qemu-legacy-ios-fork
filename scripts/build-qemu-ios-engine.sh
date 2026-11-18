@@ -44,9 +44,21 @@ echo "Xcode: $(xcodebuild -version | tr '\n' ' ')"
 echo "iPhoneOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
 echo "QEMU source revision: $(git -C "$ENGINE" rev-parse HEAD)"
 
-# Stage the currently integrated N90/A4 board sources before validating the
-# build integration. This script is intentionally not used for 2G/3G sources.
-QEMU_SOURCE_DIR="$ENGINE" "$ROOT/scripts/stage-qemu-iphone4.sh"
+if [ "$DEVICE_TARGET" = "iphone4" ]; then
+  # Stage the copied N90/A4 board sources.
+  QEMU_SOURCE_DIR="$ENGINE" "$ROOT/scripts/stage-qemu-iphone4.sh"
+elif [ "$DEVICE_TARGET" = "iphone2g" ]; then
+  # The pinned QEMU-iOS source already contains the complete S5L8900 machine:
+  # iPhone-2G is an m68ap board subtype of iPod-Touch-1G. Ensure the machine,
+  # its source registration, and the default arm-softmmu config are present.
+  grep -q 'TYPE_IPHONE_2G' "$ENGINE/hw/arm/ipod_touch_1g.c" || die "Pinned QEMU source lacks the iPhone-2G machine subtype."
+  grep -q 'config IPOD_TOUCH_1G' "$ENGINE/hw/arm/Kconfig" || die "Pinned QEMU source lacks CONFIG_IPOD_TOUCH_1G."
+  grep -q "CONFIG_IPOD_TOUCH_1G=y" "$ENGINE/configs/devices/arm-softmmu/default.mak" || die "arm-softmmu default config does not enable the S5L8900/iPhone 2G board."
+  grep -q "CONFIG_IPOD_TOUCH_1G.*ipod_touch_1g.c" "$ENGINE/hw/arm/meson.build" || die "Meson does not register the S5L8900/iPhone 2G board sources."
+  echo "Verified the pinned QEMU-iOS S5L8900 machine and iPhone-2G board registration."
+else
+  die "iPhone 3G board integration is still pending."
+fi
 
 # The application expects an iOS-device arm64 dynamic library with a defined
 # embedding ABI at ios/Frameworks/libqemu-arm.dylib. A generic QEMU executable,
