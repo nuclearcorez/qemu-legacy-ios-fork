@@ -89,10 +89,14 @@ enum PreparedFirmwareBundleStore {
         if device == "m68ap" {
             let bootrom = bundleURL.appendingPathComponent("bootrom_s5l8900").path
             let iboot = bundleURL.appendingPathComponent("iBoot.bin").path
-            let nor = bundleURL.appendingPathComponent("nor.bin").path
+            let norSource = bundleURL.appendingPathComponent("nor.bin")
+            let norWritable = overlay.appendingPathComponent("nor.bin")
+            if !manager.fileExists(atPath: norWritable.path) {
+                try manager.copyItem(at: norSource, to: norWritable)
+            }
             arguments = [
                 "-M", "iPhone-2G,bootrom=\(bootrom),iboot=\(iboot),nand=\(nand),nand-overlay=\(overlay.path)",
-                "-drive", "if=pflash,format=raw,file=\(nor)",
+                "-drive", "if=pflash,format=raw,file=\(norWritable.path)",
                 "-display", "none",
                 "-serial", "stdio",
                 "-audio", "driver=none"
