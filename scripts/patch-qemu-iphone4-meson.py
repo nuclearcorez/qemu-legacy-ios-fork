@@ -38,7 +38,7 @@ arm_ss.add(when: 'CONFIG_IPAD1', if_true: files(
   'ipod_touch_lm48821.c', 'ipod_touch_lis302dl.c', 'ipod_touch_tethered.c',
   'ipod_touch_multitouch.c', 'ipod_touch_tvout.c', 'ipod_touch_isl29003dl.c',
   'ipod_touch_bt.c', 'ipod_touch_usb_otg.c', 'ipod_touch_tcp_usb.c',
-  'ipod_touch_usb_phys.c', 'gles-host-stub.c', 'ios-posix-compat.c'
+  'ipod_touch_usb_phys.c', 'gles-host-stub.c'
 ))
 # BCM4329 SDIO/full-MAC support for the GSM iPhone 4.
 arm_ss.add(when: 'CONFIG_IPAD1', if_true: files(
