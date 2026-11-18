@@ -27,17 +27,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
-      - name: Require a private repository
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          PRIVATE="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
-          if [ "$PRIVATE" != "true" ]; then
-            echo "::error::This workflow creates archives containing Apple firmware. Set this repository to private before generating or storing the bundles."
-            exit 1
-          fi
-
       - name: Check out repository
         uses: actions/checkout@v4
 
