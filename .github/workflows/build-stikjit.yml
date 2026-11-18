@@ -1,0 +1,71 @@
+name: Build StikJIT precompiled package
+on:
+  push:
+    branches:
+      - work/ios-qemu-runtime
+    paths:
+      - scripts/vendor-stikjit.sh
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: project-astra-stikjit-prebuild-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-stikjit:
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Rust build dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ios/vendor/stikjit/src/target
+          key: astra-stikjit-${{ runner.os }}-${{ hashFiles('scripts/vendor-stikjit.sh') }}
+          restore-keys: |
+            astra-stikjit-${{ runner.os }}-
+      - name: Build pinned StikJIT integration and pairing library
+        run: |
+          set -euo pipefail
+          bash scripts/vendor-stikjit.sh
+          test -s ios/build/lib/libastra_rppairing.a
+          test -s ios/Frameworks/StikJIT.xcframework/ios-arm64/StikJIT.framework/StikJIT
+          test -s ios/Resources/astra-jit.js
+          test -s ios/Sources/AstraJITHelper/AstraJITHelper.swift
+          SCRIPT_SHA="$(shasum -a 256 scripts/vendor-stikjit.sh | awk '{print $1}')"
+          python3 - "$SCRIPT_SHA" <<'PY'
+          import json, pathlib, re, sys
+          script = pathlib.Path("scripts/vendor-stikjit.sh").read_text()
+          match = re.search(r'^REV="([0-9a-f]{40})"$', script, re.M)
+          if not match:
+              raise SystemExit("Could not identify pinned StikJIT upstream revision")
+          pathlib.Path("ios/Resources/stikjit-prebuilt.json").write_text(json.dumps({
+              "schema_version": 1,
+              "upstream": "Leviidev/Husk",
+              "upstream_revision": match.group(1),
+              "vendor_script_sha256": sys.argv[1]
+          }, indent=2) + "\n")
+          PY
+      - name: Package precompiled StikJIT integration
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/package"
+          tar -czf "$RUNNER_TEMP/package/astra-stikjit-prebuilt.tar.gz" \
+            ios/Sources/AstraJIT \
+            ios/Sources/AstraJITHelper \
+            ios/Resources/astra-jit.js \
+            ios/Resources/stikjit-prebuilt.json \
+            ios/Resources/LICENSE-UPSTREAM-GPL-2.0-or-later.txt \
+            ios/Resources/LICENSE-StikJIT-MPL-2.0.txt \
+            ios/Resources/LICENSES-rppairing-crates.txt \
+            ios/Frameworks/StikJIT.xcframework \
+            ios/build/lib/libastra_rppairing.a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Project-Astra-StikJIT-Prebuilt
+          path: ${{ runner.temp }}/package/astra-stikjit-prebuilt.tar.gz
+          if-no-files-found: error
+          retention-days: 90
