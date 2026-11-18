@@ -26,13 +26,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
-      - name: Validate encrypted-public-artifact configuration
+      - name: Require a private repository
         env:
-          FIRMWARE_ARCHIVE_PASSWORD: ${{ secrets.FIRMWARE_ARCHIVE_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${FIRMWARE_ARCHIVE_PASSWORD:-}" ] || [ "${#FIRMWARE_ARCHIVE_PASSWORD}" -lt 32 ]; then
-            echo "::error::Add a strong FIRMWARE_ARCHIVE_PASSWORD repository secret (at least 32 characters) before running this workflow."
+          PRIVATE="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
+          if [ "$PRIVATE" != "true" ]; then
+            echo "::error::This workflow creates archives containing Apple firmware. Set this repository to private before generating or storing the bundles."
             exit 1
           fi
 
@@ -162,34 +163,10 @@ jobs:
 
           echo "archives=$(find prepared -maxdepth 1 -name '*.zip' -printf '%f ')" >> "$GITHUB_OUTPUT"
 
-      - name: Encrypt prepared firmware archives
-        env:
-          FIRMWARE_ARCHIVE_PASSWORD: ${{ secrets.FIRMWARE_ARCHIVE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          archives=(prepared/*.zip)
-          if [ "${#archives[@]}" -eq 0 ]; then
-            echo "::error::No prepared firmware archives were produced."
-            exit 1
-          fi
-          for archive in "${archives[@]}"; do
-            openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 \
-              -pass env:FIRMWARE_ARCHIVE_PASSWORD \
-              -in "$archive" -out "$archive.enc"
-            rm -f "$archive"
-          done
-          rm -f prepared/SHA256SUMS
-          (cd prepared && sha256sum *.zip.enc > SHA256SUMS)
-          if find prepared -maxdepth 1 -type f -name '*.zip' | grep -q .; then
-            echo "::error::A plaintext firmware archive remains in the output directory."
-            exit 1
-          fi
-
-      - name: Upload encrypted firmware archives as workflow artifact
+      - name: Upload prepared bundles as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QEMU-iPhone4-GSM-encrypted-firmware
+          name: QEMU-iPhone4-GSM-prepared-firmware
           path: prepared/*
           if-no-files-found: error
           retention-days: 14
