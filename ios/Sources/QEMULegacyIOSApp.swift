@@ -335,7 +335,7 @@ struct EmulatorSettingsView: View {
     private let storageOptions = [1, 2, 4, 8, 16, 32]
     private var firmwareOptions: [String] {
         switch cpuFamily {
-        case "S5L8900-2G": return ["1.0"]
+        case "S5L8900-2G": return ["1.0", "3.1.3"]
         case "ARM11": return ["4.2.1"]
         default: return ["4.2.1", "7.1.2", "6.1.3", "5.1.1", "8.4.1", "9.3.6"]
         }
