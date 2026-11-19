@@ -25,6 +25,9 @@ fi
 # The helper is idempotent; the device config below selects the board to build.
 sh "$ROOT/scripts/stage-qemu-iphone4.sh"
 
+# Supply ES extension enum values omitted by Apple's ES 1.1 headers.
+python3 "$ROOT/scripts/patch-qemu-ios-gles-enums.py" "$ENGINE/hw/arm/gles-host.c"
+
 # Assert that the staged Apple crypto compatibility headers are actually
 # visible to QEMU's quoted include search before starting the expensive build.
 test -s "$ENGINE/include/openssl/aes.h"
