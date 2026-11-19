@@ -5,6 +5,7 @@ on:
       - work/ios-qemu-runtime
     paths:
       - scripts/vendor-stikjit.sh
+      - .github/workflows/build-stikjit.yml
   workflow_dispatch:
 permissions:
   contents: read
