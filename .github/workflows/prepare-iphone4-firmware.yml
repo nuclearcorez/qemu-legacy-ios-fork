@@ -24,7 +24,6 @@ jobs:
   prepare:
     name: Build prepared N90AP firmware
     # Apple IPSW-derived firmware must never be generated or published from a public repository.
-    if: ${{ github.event.repository.private == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
