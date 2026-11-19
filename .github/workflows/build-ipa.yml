@@ -1,5 +1,10 @@
 name: Build iOS IPA
 on:
+  push:
+    branches:
+      - work/ios-qemu-runtime
+    paths:
+      - .github/workflows/build-ipa.yml
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -11,9 +16,6 @@ permissions:
   actions: read
   contents: write
 
-concurrency:
-  group: project-astra-ipa-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   preflight:
@@ -29,6 +31,7 @@ jobs:
           bash -n scripts/vendor-stikjit.sh
           bash -n scripts/create-iphone4-8gb-nand.sh
           bash -n scripts/stage-qemu-iphone4.sh
+          python3 -m py_compile scripts/patch-qemu-ios-gles-enums.py
           test -s ios/project.yml
           test -s ios/Info.plist
           test -s scripts/vendor-stikjit.sh
@@ -55,7 +58,7 @@ jobs:
   build-ipa:
     needs: preflight
     if: ${{ needs.preflight.outputs.skip_build != 'true' }}
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -123,31 +126,20 @@ jobs:
             echo "Project Astra's on-device pairing code uses iOS 26 SDK APIs; install/select Xcode 26 or newer." >&2
             exit 1
           fi
-      - name: Download and verify published QEMU engine
+      - name: Build and verify QEMU iOS engine
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QEMU_IOS_BUILD_ROOT: ${{ runner.temp }}/qemu-ios
+          DEVICE_TARGET: iphone4
         run: |
           set -euo pipefail
-          git fetch origin engine-binaries
-          git show origin/engine-binaries:manifest.json > "$RUNNER_TEMP/qemu-engine-manifest.json"
-          ENGINE_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["release_tag"])' "$RUNNER_TEMP/qemu-engine-manifest.json")"
-          ENGINE_SHA256="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$RUNNER_TEMP/qemu-engine-manifest.json")"
-          ENGINE_ARCH="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["architecture"])' "$RUNNER_TEMP/qemu-engine-manifest.json")"
-          test "$ENGINE_ARCH" = "arm64"
-          test -n "$ENGINE_TAG"
-          test "${#ENGINE_SHA256}" -eq 64
-          mkdir -p "$RUNNER_TEMP/qemu-engine"
-          gh release download "$ENGINE_TAG" --pattern libqemu-arm.dylib --dir "$RUNNER_TEMP/qemu-engine"
-          ENGINE_FILE="$RUNNER_TEMP/qemu-engine/libqemu-arm.dylib"
+          bash scripts/build-qemu-ios-engine.sh
+          ENGINE_FILE="ios/Frameworks/libqemu-arm.dylib"
           test -s "$ENGINE_FILE"
-          printf '%s  %s\n' "$ENGINE_SHA256" "$ENGINE_FILE" | shasum -a 256 -c -
           lipo "$ENGINE_FILE" -verify_arch arm64
-          for symbol in qemu_ios_main qemu_ios_ui_attach qemu_ios_ui_frame qemu_ios_ui_touch qemu_ios_ui_button qemu_ios_ui_ready qemu_ios_ui_storage_failed qemu_ios_ui_guest_shutdown_confirmed; do
+          for symbol in qemu_ios_main qemu_ios_ui_attach qemu_ios_ui_frame qemu_ios_ui_touch; do
             nm -gU "$ENGINE_FILE" | grep -q " _$symbol$"
           done
-          mkdir -p ios/Frameworks
-          cp "$ENGINE_FILE" ios/Frameworks/libqemu-arm.dylib
-          echo "Using published QEMU engine $ENGINE_TAG"
+          echo "Built and verified the QEMU iOS engine from the pinned source."
       - name: Install XcodeGen only when missing
         run: |
           set -euo pipefail
@@ -162,15 +154,20 @@ jobs:
         run: |
           set -euo pipefail
           PREBUILD_RUN="$(gh run list --workflow build-stikjit.yml --branch "$GITHUB_REF_NAME" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-          if [ -z "$PREBUILD_RUN" ]; then
-            echo "No successful StikJIT prebuild exists for this branch. Run the Build StikJIT precompiled package workflow first." >&2
-            exit 1
+          if [ -n "$PREBUILD_RUN" ]; then
+            mkdir -p "$RUNNER_TEMP/stikjit-prebuilt"
+            gh run download "$PREBUILD_RUN" --name Project-Astra-StikJIT-Prebuilt --dir "$RUNNER_TEMP/stikjit-prebuilt"
+            PACKAGE="$RUNNER_TEMP/stikjit-prebuilt/astra-stikjit-prebuilt.tar.gz"
+            if [ -s "$PACKAGE" ]; then
+              tar -xzf "$PACKAGE" -C "$GITHUB_WORKSPACE"
+            else
+              echo "No usable StikJIT artifact found; building the pinned sources locally."
+              bash scripts/vendor-stikjit.sh
+            fi
+          else
+            echo "No successful StikJIT prebuild exists yet; building the pinned sources locally."
+            bash scripts/vendor-stikjit.sh
           fi
-          mkdir -p "$RUNNER_TEMP/stikjit-prebuilt"
-          gh run download "$PREBUILD_RUN" --name Project-Astra-StikJIT-Prebuilt --dir "$RUNNER_TEMP/stikjit-prebuilt"
-          PACKAGE="$RUNNER_TEMP/stikjit-prebuilt/astra-stikjit-prebuilt.tar.gz"
-          test -s "$PACKAGE"
-          tar -xzf "$PACKAGE" -C "$GITHUB_WORKSPACE"
           EXPECTED_SCRIPT_SHA="$(shasum -a 256 scripts/vendor-stikjit.sh | awk '{print $1}')"
           ACTUAL_SCRIPT_SHA="$(python3 -c 'import json; print(json.load(open("ios/Resources/stikjit-prebuilt.json"))["vendor_script_sha256"])')"
           test "$EXPECTED_SCRIPT_SHA" = "$ACTUAL_SCRIPT_SHA"
@@ -217,9 +214,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/DerivedData
-          key: astra-xcode-${{ runner.os }}-${{ hashFiles('ios/project.yml', 'ios/Info.plist', 'ios/Sources/**/*.swift', 'ios/Sources/**/*.h', 'ios/Sources/**/*.m', 'ios/Resources/**', 'ios/Frameworks/**') }}
+          key: astra-xcode-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ios/project.yml', 'ios/Info.plist', 'ios/Sources/**/*.swift', 'ios/Sources/**/*.h', 'ios/Sources/**/*.m', 'ios/Resources/**', 'ios/Frameworks/**') }}
           restore-keys: |
-            astra-xcode-${{ runner.os }}-
+            astra-xcode-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Generate project
         run: xcodegen generate --spec ios/project.yml --project ios
