@@ -1,6 +1,11 @@
 name: Build QEMU iOS engine
 
 on:
+  push:
+    branches:
+      - work/ios-qemu-runtime
+    paths:
+      - .github/workflows/build-qemu-ios-engine.yml
   workflow_dispatch:
 
 permissions:
@@ -8,7 +13,7 @@ permissions:
 
 jobs:
   build-ios-engine:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
