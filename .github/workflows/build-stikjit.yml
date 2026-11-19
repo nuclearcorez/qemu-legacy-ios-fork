@@ -21,7 +21,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ios/vendor/stikjit/src/target
-          key: astra-stikjit-${{ runner.os }}-${{ runner.arch }}-${{ runner.arch }}-${{ hashFiles('scripts/vendor-stikjit.sh') }}
+          key: astra-stikjit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/vendor-stikjit.sh') }}
           restore-keys: |
             astra-stikjit-${{ runner.os }}-
       - name: Build pinned StikJIT integration and pairing library
